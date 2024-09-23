@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <img src="./assets/fruits_image.png" alt="Company Logo" width="200" height="200" style="margin-bottom: 20px;"/> 
+    <title>Portal Web Page</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-image: url('./assets/background.png'); 
+        background-size: cover; 
+        background-position: center; 
+        background-repeat: no-repeat; 
+        background-attachment: fixed; 
+    }
+    .container {
+        background-color: rgba(255, 255, 255, 0.9); 
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-width: 500px;
+        width: 100%;
+    }
+        input, button, select {
+            display: block;
+            width: 100%;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #masterPanel, #userManagement, #fruitOrderingPanel, #orderConfirmation {
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .logo {
+            margin-bottom: 20px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Portal Login</h1>
+        <div id="loginForm">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="masterPanel">
+            <h2>Welcome, Master!</h2>
+            <button onclick="toggleUserManagement()">Manage Users</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+        <div id="userManagement">
+            <h2>User Management</h2>
+            <input type="text" id="newUsername" placeholder="New Username">
+            <input type="password" id="newPassword" placeholder="New Password">
+            <button onclick="createUser()">Create User</button>
+            <input type="text" id="deleteUsername" placeholder="Username to Delete">
+            <button onclick="deleteUser()">Delete User</button>
+            <button onclick="toggleUserManagement()">Back to Master Panel</button>
+        </div>
+        <div id="fruitOrderingPanel">
+            <h2>Order Fruits</h2>
+            <select id="fruitSelect">
+                <option value="">Select a fruit</option>
+            </select>
+            <input type="number" id="quantityInput" placeholder="Quantity" min="1">
+            <button onclick="showOrderConfirmation()">Place Order</button>
+            <h3>Your Orders</h3>
+            <table id="orderTable">
+                <thead>
+                    <tr>
+                        <th>Fruit</th>
+                        <th>Quantity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="orderConfirmation" class="modal">
+        <div class="modal-content">
+            <h2>Confirm Your Order</h2>
+            <p id="orderDetails"></p>
+            <button onclick="confirmOrder()">Confirm Order</button>
+            <button onclick="cancelOrder()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const masterUsername = 'Master';
+        const masterPassword = 'Master123';
+        let users = [];
+        let fruits = [
+            { id: 1, name: 'Apple', stock: 50 },
+            { id: 2, name: 'Banana', stock: 40 },
+            { id: 3, name: 'Orange', stock: 30 },
+            { id: 4, name: 'Mango', stock: 20 },
+        ];
+        let orders = [];
+        let currentUser = '';
+        let pendingOrder = null;
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === masterUsername && password === masterPassword) {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('masterPanel').style.display = 'block';
+            } else if (users.some(user => user.username === username && user.password === password)) {
+                currentUser = username;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('fruitOrderingPanel').style.display = 'block';
+                populateFruitOptions();
+                displayOrders();
+            } else {
+                alert('Invalid username or password');
+            }
+        }
+
+        function toggleUserManagement() {
+            const masterPanel = document.getElementById('masterPanel');
+            const userManagement = document.getElementById('userManagement');
+            
+            if (masterPanel.style.display === 'none') {
+                masterPanel.style.display = 'block';
+                userManagement.style.display = 'none';
+            } else {
+                masterPanel.style.display = 'none';
+                userManagement.style.display = 'block';
+            }
+        }
+
+        function createUser() {
+            const newUsername = document.getElementById('newUsername').value;
+            const newPassword = document.getElementById('newPassword').value;
+
+            if (newUsername && newPassword) {
+                users.push({ username: newUsername, password: newPassword });
+                alert('User created successfully!');
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+            } else {
+                alert('Please enter both username and password');
+            }
+        }
+
+        function deleteUser() {
+            const deleteUsername = document.getElementById('deleteUsername').value;
+            const index = users.findIndex(user => user.username === deleteUsername);
+
+            if (index !== -1) {
+                users.splice(index, 1);
+                alert('User deleted successfully!');
+                document.getElementById('deleteUsername').value = '';
+            } else {
+                alert('User not found');
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('masterPanel').style.display = 'none';
+            document.getElementById('userManagement').style.display = 'none';
+            document.getElementById('fruitOrderingPanel').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            currentUser = '';
+        }
+
+        function populateFruitOptions() {
+            const fruitSelect = document.getElementById('fruitSelect');
+            fruitSelect.innerHTML = '<option value="">Select a fruit</option>';
+            fruits.forEach(fruit => {
+                if (fruit.stock > 0) {
+                    const option = document.createElement('option');
+                    option.value = fruit.id;
+                    option.textContent = `${fruit.name} (${fruit.stock} in stock)`;
+                    fruitSelect.appendChild(option);
+                }
+            });
+        }
+
+        function showOrderConfirmation() {
+            const fruitId = document.getElementById('fruitSelect').value;
+            const quantity = parseInt(document.getElementById('quantityInput').value);
+
+            if (!fruitId || isNaN(quantity) || quantity <= 0) {
+                alert('Please select a fruit and enter a valid quantity.');
+                return;
+            }
+
+            const fruit = fruits.find(f => f.id === parseInt(fruitId));
+            if (fruit.stock < quantity) {
+                alert('Not enough stock available.');
+                return;
+            }
+
+            pendingOrder = {
+                fruit: fruit.name,
+                quantity: quantity,
+                status: 'Pending'
+            };
+
+            document.getElementById('orderDetails').textContent = `${quantity} ${fruit.name}(s)`;
+            document.getElementById('orderConfirmation').style.display = 'block';
+        }
+
+        function confirmOrder() {
+            if (pendingOrder) {
+                const fruit = fruits.find(f => f.name === pendingOrder.fruit);
+                fruit.stock -= pendingOrder.quantity;
+                orders.push(pendingOrder);
+
+                populateFruitOptions();
+                displayOrders();
+                document.getElementById('fruitSelect').value = '';
+                document.getElementById('quantityInput').value = '';
+
+                sendEmailToManager(pendingOrder);
+
+                pendingOrder = null;
+                document.getElementById('orderConfirmation').style.display = 'none';
+            }
+        }
+
+        function cancelOrder() {
+            pendingOrder = null;
+            document.getElementById('orderConfirmation').style.display = 'none';
+        }
+
+        function displayOrders() {
+            const orderTableBody = document.querySelector('#orderTable tbody');
+            orderTableBody.innerHTML = '';
+            orders.filter(order => order.user === currentUser).forEach(order => {
+                const row = orderTableBody.insertRow();
+                row.insertCell(0).textContent = order.fruit;
+                row.insertCell(1).textContent = order.quantity;
+                row.insertCell(2).textContent = order.status;
+            });
+        }
+
+        function sendEmailToManager(order) {
+            const emailContent = `
+                New order from ${currentUser}:
+                Fruit: ${order.fruit}
+                Quantity: ${order.quantity}
+                
+                To approve this order, please log in to the portal.
+            `;
+            console.log('Simulated email sent to gustavo.git.tests@gmail.com:');
+            console.log(emailContent);
+            
+            
+        }
+
+            function managerApproveOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'Approved';
+                displayOrders();
+                console.log(`Order ${orderId} has been approved by the manager.`);
+            }
+        }
+    </script>
+</body>
+</html>
